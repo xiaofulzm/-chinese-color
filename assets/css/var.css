@@ -1,0 +1,12 @@
+
+:root{
+  --fu-text-color:#ffffff;
+  --fu-bg-color:#000000;
+  --fu-small-p-r:15vw;
+  --fu-mini-p-r:1vw;
+}
+
+.dark{
+  --fu-text-color:#000000;
+  --fu-bg-color:#ffffff;
+}

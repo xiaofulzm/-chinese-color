@@ -1,0 +1,26 @@
+{
+  "name": "chuantongse",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev --host",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@css-render/vue3-ssr": "^0.15.12",
+    "naive-ui": "^2.38.1",
+    "nuxt": "^3.11.2",
+    "three": "0.162.0",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "nuxt-lodash": "^2.5.3",
+    "nuxt-svgo": "^4.0.0",
+    "pinyin-pro": "^3.20.2",
+    "sass": "^1.75.0"
+  }
+}
