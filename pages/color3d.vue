@@ -25,7 +25,14 @@
     Raycaster,
     SpriteMaterial,
     Sprite,
-    CanvasTexture
+    CanvasTexture,
+    Group,
+    Float32BufferAttribute,
+    PointsMaterial,
+    Points,
+    SphereGeometry,
+    LineBasicMaterial,
+    LineLoop
     } from 'three';
 
     import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -48,28 +55,37 @@
 
     let w = 0,h = 0;
     let camera,scene,renderer,controls;
+    let cardGroup,starGroup;
     
     const raycaster = new Raycaster();
 
     onMounted(()=>{
+        useHead({
+            title: `传统色-3D`,
+        })
+
         init();
         window.addEventListener('resize', onWindowResize);
 
-        renderer.domElement.addEventListener('click', function (event) {
-            // .offsetY、.offsetX以canvas画布左上角为坐标原点,单位px
+        renderer.domElement.addEventListener('click', focusCard)
+    })
+
+    onUnmounted(()=>{
+        window.removeEventListener('resize', onWindowResize);
+    })
+    
+    // 聚焦场景卡片
+    function focusCard (event){
+
             const px = event.offsetX;
             const py = event.offsetY;
-            //屏幕坐标px、py转WebGL标准设备坐标x、y
-            //width、height表示canvas画布宽高度
+  
             const x = (px / window.innerWidth) * 2 - 1;
             const y = -(py / window.innerHeight) * 2 + 1;
-            //创建一个射线投射器`Raycaster`
-            //.setFromCamera()计算射线投射器`Raycaster`的射线属性.ray
-            // 形象点说就是在点击位置创建一条射线，射线穿过的模型代表选中
-            raycaster.setFromCamera(new Vector2(x, y), camera);
-            //.intersectObjects([mesh1, mesh2, mesh3])对参数中的网格模型对象进行射线交叉计算
         
-            const intersects = raycaster.intersectObjects(scene.children);
+            raycaster.setFromCamera(new Vector2(x, y), camera);
+        
+            const intersects = raycaster.intersectObjects(cardGroup.children);
             if (intersects.length > 0) {
                 const card = intersects[0].object;
                 const {x,y,z} =  card.position;
@@ -101,22 +117,19 @@
                 .onUpdate(function (obj) {
                     camera.position.set(obj.x, obj.y, obj.z);
                     // 动态计算相机视线
-                    // camera.lookAt(obj.tx, obj.ty, obj.tz);
                     controls.target.set(obj.tx, obj.ty, obj.tz);
                     controls.update();//内部会执行.lookAt()
                 })
                 .start();
             }
-        })
-    })
-
-    onUnmounted(()=>{
-        window.removeEventListener('resize', onWindowResize);
-    })
-    
+    }
 
 
+    // 初始化
     function init(){
+
+        cardGroup = new Group();
+        starGroup = new Group();
         
 
         w = window.innerWidth;
@@ -128,7 +141,7 @@
         const near = 1; 
         const far = 6000; 
         camera = new PerspectiveCamera(fov, aspect, near, far );
-        camera.position.set(0,0,50); 
+        camera.position.set(0,0,180); 
         camera.lookAt(0,0,0);//指向mesh对应的位置 
 
         scene = new Scene();
@@ -141,20 +154,27 @@
         // 添加到页面
         containerRef.value.append(renderer.domElement)
 
+
         // AxesHelper：辅助观察的坐标系    
         const axesHelper = new AxesHelper(150);
         // scene.add(axesHelper);
 
         // 设置相机控件轨道控制器OrbitControls
         controls = new OrbitControls(camera,renderer.domElement);
+        controls.enablePan = false; 
+        controls.enableZoom = false;
+        controls.enableRotate = false;
+    
+
         controls.addEventListener('change',()=>{ //相机位置与目标观察点距离
             renderer.render(scene,camera); //执行渲染操作
 
         });//监听鼠标、键盘事件
 
         colorMesh();
+        createStar();
+
         render();
-        console.log(scene);
     }
     function render(){
       requestAnimationFrame(render);//请求再次执行渲染函数render，渲染下一帧
@@ -162,25 +182,29 @@
       renderer.render(scene,camera); //执行渲染操作
     }
 
+    // 监听浏览器窗口
     function onWindowResize(){
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
+    // 生成卡片场景
     async function colorMesh(){
         
         colorsArr.value.forEach((c,ci)=>{
 
                 let x = Math.random()>0.5?-Math.random()*200:Math.random()*200,
-                y = Math.random()>0.5?-Math.random()*200:Math.random()*200,
-                z = Math.random()>0.5?-Math.random()*200:Math.random()*200;
+                    y = Math.random()>0.5?-Math.random()*200:Math.random()*200,
+                    z = Math.random()>0.5?-Math.random()*200:Math.random()*200;
 
                 const canvas = createCanvas(c);//创建一个canvas画布
                 const texture = new CanvasTexture(canvas);
                 
                 const spriteMaterial = new SpriteMaterial({
                     map: texture,
+                    opacity:0,
+                    transparent:true
                 });
                 const sprite = new Sprite(spriteMaterial);
                 sprite.name = c.name;
@@ -190,11 +214,73 @@
                 const cy = canvas.height*s;
                 sprite.scale.set(cx, cy, 1);
                 sprite.position.set(x,y,z); //标签底部箭头和空对象标注点重合  
-                scene.add(sprite); //tag会标注在空对象obj对应的位置
+                cardGroup.add(sprite); 
+                
         })
-        
-    }
+        scene.add(cardGroup); 
 
+        // console.log(cardGroup);
+        
+        cardGroup.children.forEach((card,i)=>{
+            // console.log(i,(parseInt(i/100)/2*1000));
+            // new TWEEN.Tween({
+            //         // 相机开始坐标
+            //         x: card.position.x,
+            //         y: card.position.y,
+            //         z: card.position.z,
+            //     })
+            //     .to({
+            //         // 相机结束坐标
+            //         x: Math.random()>0.5?-Math.random()*200:Math.random()*200,
+            //         y: Math.random()>0.5?-Math.random()*200:Math.random()*200,
+            //         z: Math.random()>0.5?-Math.random()*200:Math.random()*200,
+            //     }, 5000)
+            //     .delay((parseInt(i/100)/2*1000))
+            //     .onUpdate(function (obj) {
+            //         card.position.set(obj.x, obj.y, obj.z)
+            //     })
+            //     .start();
+             new TWEEN.Tween({
+                    // 相机开始坐标
+                    o:0,
+                })
+                .to({
+                    // 相机结束坐标
+                    o:1
+                },3000)
+                .delay((parseInt(i/100)/2*1000))
+                .onUpdate(function (obj) {
+                    card.material.opacity = obj.o;
+                    // card.position.set(obj.x, obj.y, obj.z)
+                })
+                .start()
+            
+        })
+
+        setTimeout(()=>{
+            // console.log('执行');
+            new TWEEN.Tween({
+                ry:0,
+            })
+            .to({
+                ry:Math.PI*2,
+            },5000)
+            .onUpdate(function (obj) {
+                cardGroup.rotation.y = obj.ry;
+            })
+            .onComplete(()=>{
+                controls.enableZoom = true;
+                controls.enableRotate = true;
+                controls.minDistance = -250;
+                controls.maxDistance = 250;
+
+            })
+            .start()
+        },8000)
+
+    }
+   
+    // 根据颜色生成卡片贴图
     function createCanvas(data) {
         
         const canvas = document.createElement("canvas");
@@ -226,6 +312,102 @@
 
         return canvas;
     }
+
+
+    function createStar(){
+
+        const geometry = new SphereGeometry( 400,50, 26 );
+
+        const roundPoint  = geometry.attributes.position.array;
+      
+        const roundGeometry = new BufferGeometry();
+        var vertices = [];
+        for (let i = 0; i < roundPoint.length; i+=3) {
+
+            const x = roundPoint[i]+Math.random()*30;
+            const y = roundPoint[i+1]+Math.random()*30;
+            const z = roundPoint[i+2];
+            
+            vertices.push(x, y, z);
+        }
+  
+        roundGeometry.setAttribute('position', new Float32BufferAttribute(vertices, 3));
+
+        // 创建粒子的材质
+        const material = new PointsMaterial({
+            size: 1,
+            color: 0xffffff
+        });
+
+        // 使用几何体和材质创建粒子系统
+        const particles = new Points(roundGeometry, material);
+        starGroup.add(particles)
+        scene.add(starGroup)
+
+        // const radius = 6371;
+
+        // const r = radius, starsGeometry = [ new BufferGeometry(), new BufferGeometry() ];
+
+        // const vertices1 = [];
+        // const vertices2 = [];
+
+        // const vertex = new Vector3();
+
+        // for ( let i = 0; i < 250; i ++ ) {
+
+        //     vertex.x = Math.random() * 2 - 1;
+        //     vertex.y = Math.random() * 2 - 1;
+        //     vertex.z = Math.random() * 2 - 1;
+        //     vertex.multiplyScalar( r );
+
+        //     vertices1.push( vertex.x, vertex.y, vertex.z );
+
+        // }
+
+        // for ( let i = 0; i < 1500; i ++ ) {
+
+        //     vertex.x = Math.random() * 2 - 1;
+        //     vertex.y = Math.random() * 2 - 1;
+        //     vertex.z = Math.random() * 2 - 1;
+        //     vertex.multiplyScalar( r );
+
+        //     vertices2.push( vertex.x, vertex.y, vertex.z );
+
+        // }
+
+        // starsGeometry[ 0 ].setAttribute( 'position', new Float32BufferAttribute( vertices1, 3 ) );
+        // starsGeometry[ 1 ].setAttribute( 'position', new Float32BufferAttribute( vertices2, 3 ) );
+
+        // const starsMaterials = [
+        //     new PointsMaterial( { color: 0x9c9c9c, size: 2, sizeAttenuation: false } ),
+        //     new PointsMaterial( { color: 0x9c9c9c, size: 1, sizeAttenuation: false } ),
+        //     new PointsMaterial( { color: 0x7c7c7c, size: 2, sizeAttenuation: false } ),
+        //     new PointsMaterial( { color: 0x838383, size: 1, sizeAttenuation: false } ),
+        //     new PointsMaterial( { color: 0x5a5a5a, size: 2, sizeAttenuation: false } ),
+        //     new PointsMaterial( { color: 0x5a5a5a, size: 1, sizeAttenuation: false } )
+        // ];
+
+        // for ( let i = 0; i < 30; i ++ ) {
+
+        //     const stars = new Points( starsGeometry[ i % 2 ], starsMaterials[ i % 6 ] );
+
+        //     stars.rotation.x = Math.random() * 6;
+        //     stars.rotation.y = Math.random() * 6;
+        //     stars.rotation.z = Math.random() * 6;
+        //     stars.scale.setScalar( i * 10 );
+
+        //     stars.matrixAutoUpdate = false;
+        //     stars.updateMatrix();
+
+        //     starGroup.add( stars );
+
+        // }
+
+        // console.log(starGroup);
+        // scene.add(starGroup)
+
+    }
+
 
 </script>
 
